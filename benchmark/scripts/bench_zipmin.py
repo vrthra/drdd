@@ -87,22 +87,23 @@ def parse_perf_stat_csv(path:Path) -> Dict[str, float]:
 def run_one(
 	case_dir:Path, 
 	rel_input:Path, 
-	module:str) -> Dict[str, object]:
+	module:str,
+	result_dir:str) -> Dict[str, object]:
 	
 	"""Run one minimization via perf + wrapper and gather metrics."""
 	
 	# prepare perf file path unique per run
-	perf_dir = PROGRAM_DIR.parent / "results" / "perf"
+	perf_dir = PROGRAM_DIR.parent / "runs" / result_dir / "perf"
 	perf_out = perf_dir / f"perf_{case_dir.name}_{rel_input.stem}_{module.replace(".", "-")}.out"
 	perf_out.parent.mkdir(parents=True, exist_ok=True)
 
 	# prepare out file path per run
-	min_dir = PROGRAM_DIR.parent / "results" / "minimized"
+	min_dir = PROGRAM_DIR.parent / "runs" / result_dir / "minimized"
 	min_out = min_dir / f"{case_dir.name}_{rel_input.stem}.min-{module.replace(".", "-")}.xml"
 	min_out.parent.mkdir(parents=True, exist_ok=True)
 
 	# prepare log file path per run
-	log_dir    = PROGRAM_DIR.parent / "results" / "logs"
+	log_dir    = PROGRAM_DIR.parent / "runs" / result_dir / "logs"
 	log_stem   = f"{case_dir.name}_{rel_input.stem}_{module.replace(".", "-")}"
 	stdout_out = log_dir / f"{log_stem}.stdout"
 	stderr_out = log_dir / f"{log_stem}.stderr"
@@ -212,6 +213,11 @@ def run_one(
 
 
 def main():
+	# result directory
+	timestamp  = datetime.datetime.now().strftime("%d-%m-%Y_%H:%M")
+	commit     = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+	result_dir = f"{timestamp}_git-{commit}"
+
 	p = argparse.ArgumentParser(description=__doc__)
 	
 	p.add_argument(
@@ -228,7 +234,7 @@ def main():
 	
 	p.add_argument(
 		"--output", 
-		default=str(PROGRAM_DIR.parent / "results" / "result.csv"), 
+		default=str(PROGRAM_DIR.parent / "runs" / result_dir / "result.csv"), 
 		help="Output CSV path"
 	)
 
@@ -296,7 +302,7 @@ See output parent dir for artefacts.
 	
 	if args.jobs <= 1:
 		for i, (case_dir, rel_input, module) in enumerate(tasks):
-			rows[i] = run_one(case_dir, rel_input, module)
+			rows[i] = run_one(case_dir, rel_input, module, result_dir)
 
 	else:
 		with ThreadPoolExecutor(max_workers=args.jobs) as ex:
