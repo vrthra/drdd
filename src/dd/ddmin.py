@@ -57,7 +57,7 @@ def minimize(
 	partlen = len(target) // 2
 
 	while partlen and target:
-		if verbose: print(f"[{datetime.now().strftime("%H:%M:%S")}] {len(target):.2E}\t...\t{partlen}")
+		if verbose: print(f"[{datetime.now().strftime('%H:%M:%S')}] {len(target):.2E}\t...\t{partlen}")
 
 		reduced, n_sweep_good_oracalls = complement_sweep(target, partlen, oracle)
 		
