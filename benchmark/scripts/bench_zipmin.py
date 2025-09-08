@@ -48,7 +48,7 @@ def parse_minimize_stdout(stdout:str) -> Tuple[Optional[int], Optional[int]]:
 		if oracle_calls is None and (match := RE_ORA_CALLS.search(line)): oracle_calls = int(match.group(1))
 		if min_len is not None and oracle_calls is not None: break
 
-	if not all(min_len, oracle_calls): raise RuntimeError("Malformed output - could not parse minimized length / oracle calls")
+	if not all([min_len, oracle_calls]): raise RuntimeError("Malformed output - could not parse minimized length / oracle calls")
 
 	return min_len, oracle_calls
 
