@@ -311,7 +311,7 @@ See output parent dir for artefacts.
 			for i, (case_dir, rel_input, module) in enumerate(tasks):
 				print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}] (start | id:{i}) {module}\t...\t{case_dir.name}/{rel_input}")
 				
-				fut = ex.submit(run_one, case_dir, rel_input, module)
+				fut = ex.submit(run_one, case_dir, rel_input, module, result_dir)
 				futures[fut] = i
 				
 				# delay to account for BaseXServer startup
