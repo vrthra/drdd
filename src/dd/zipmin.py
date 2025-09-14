@@ -93,7 +93,7 @@ def minimize(
 	partlen = len(target) // 2
 	
 	while partlen and target:
-		if verbose: print(f"[{datetime.now().strftime('%H:%M:%S')}]  {len(pre):.2E} + {len(target):.2E} + {len(post):.2E}  {partlen}")
+		if verbose: print(f"[{datetime.now().strftime('%H:%M:%S')}]  {len(pre):.2E} + {len(target):.2E} + {len(post):.2E}\t...\t{partlen}")
 
 		# alternate between deficit-guided last zipping...
 		if c_iteralt % 2: 
