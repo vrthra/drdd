@@ -13,9 +13,6 @@ def complement_sweep(target:str, partlen:int, oracle:Callable) -> str:
 	:returns: reduced string.
 	"""
 
-	# count no. of oracle calls that pass XML well-formedness pre-check
-	n_good_oracalls = 0
-
 	reduced = ""
 	
 	# test contiguous discrete chunks of size partlen for interestingness
@@ -24,13 +21,11 @@ def complement_sweep(target:str, partlen:int, oracle:Callable) -> str:
 		removed   = target[i:split]
 		remaining = target[split:]
 		
-		interesting, well_formed = oracle(reduced + remaining)
-
-		if well_formed: n_good_oracalls += 1
+		interesting = oracle(reduced + remaining)
 		
 		if not interesting: reduced += removed
 	
-	return reduced, n_good_oracalls
+	return reduced
 
 
 def minimize(
@@ -51,7 +46,6 @@ def minimize(
 
 	# count total oracle calls
 	n_total_oracalls = 0
-	n_good_oracalls  = 0
 
 	# partition size
 	partlen = len(target) // 2
@@ -59,15 +53,13 @@ def minimize(
 	while partlen and target:
 		if verbose: print(f"[{datetime.now().strftime('%H:%M:%S')}] {len(target):.2E}\t...\t{partlen}")
 
-		reduced, n_sweep_good_oracalls = complement_sweep(target, partlen, oracle)
+		reduced = complement_sweep(target, partlen, oracle)
 		
-		if stats: 
-			n_total_oracalls += ceil(len(target) / partlen)
-			n_good_oracalls  += n_sweep_good_oracalls
+		if stats: n_total_oracalls += ceil(len(target) / partlen)
 
 		# reduce partition size if no update 
 		if reduced == target: partlen //= 2		
 		
 		target = reduced
 	
-	return (target, n_total_oracalls, n_good_oracalls) if stats else target
+	return (target, n_total_oracalls) if stats else target

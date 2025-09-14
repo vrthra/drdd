@@ -19,10 +19,10 @@ def remove_last_char(
 	:returns: tuple of (prelude, target, postlude) strings.
 	"""
 
-	interesting, well_formed = oracle(pre + target[:-1] + post)
+	interesting = oracle(pre + target[:-1] + post)
 
-	if interesting: return pre, target[:-1], post, well_formed
-	else: return pre, target[:-1], target[-1] + post, well_formed
+	if interesting: return pre, target[:-1], post
+	else: return pre, target[:-1], target[-1] + post
 
 
 def complement_sweep(
@@ -42,9 +42,6 @@ def complement_sweep(
 	:param oracle: oracle function.
 	:returns: reduced string.
 	"""
-	
-	# count no. of oracle calls that pass XML well-formedness pre-check
-	n_good_oracalls = 0
 
 	reduced = ""
 	
@@ -54,13 +51,11 @@ def complement_sweep(
 		removed   = target[i:split]
 		remaining = target[split:]
 		
-		interesting, wellformed = oracle(pre + reduced + remaining + post)
-
-		if wellformed: n_good_oracalls += 1
+		interesting = oracle(pre + reduced + remaining + post)
 
 		if not interesting: reduced += removed
 	
-	return reduced, n_good_oracalls
+	return reduced
 
 
 def minimize(
@@ -83,7 +78,6 @@ def minimize(
 	c_iteralt        = 0
 	deficit          = 0
 	n_total_oracalls = 0
-	n_good_oracalls  = 0
 		
 	# pre and postludes
 	pre  = ""
@@ -98,9 +92,7 @@ def minimize(
 		# alternate between deficit-guided last zipping...
 		if c_iteralt % 2: 
 			for i in range(deficit):
-				pre, target, post, wellformed = remove_last_char(pre, target, post, oracle)
-
-				if stats and wellformed: n_good_oracalls += 1
+				pre, target, post = remove_last_char(pre, target, post, oracle)
 
 			if stats: n_total_oracalls += deficit
 			  
@@ -108,16 +100,14 @@ def minimize(
 		
 		# ...and complement sweep
 		else:
-			reduced, n_sweep_good_oracalls = complement_sweep(pre, target, post, partlen, oracle)
+			reduced = complement_sweep(pre, target, post, partlen, oracle)
 			
 			n_sweep_total_oracalls = ceil(len(target) / partlen)
 			
 			# compute deficit: max(no. of oracle calls that lead to no change)
 			deficit  = max(n_sweep_total_oracalls - (len(target) - len(reduced)), 0)
 
-			if stats: 
-				n_total_oracalls += n_sweep_total_oracalls
-				n_good_oracalls += n_sweep_good_oracalls
+			if stats: n_total_oracalls += n_sweep_total_oracalls
 	
 			# reduce partition size if no update 
 			if target == reduced: partlen //= 2
@@ -129,4 +119,4 @@ def minimize(
 	# consolidate reduced target 
 	target = pre + target + post
 	
-	return (target, n_total_oracalls, n_good_oracalls) if stats else target
+	return (target, n_total_oracalls) if stats else target

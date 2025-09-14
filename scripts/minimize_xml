@@ -124,7 +124,7 @@ def main():
 	minimized = None
 
 	try:
-		minimized, n_oracle_calls, _ = minimize(
+		minimized, n_oracle_calls = minimize(
 			target =original, 
 			oracle =oracle,
 			stats  =True,

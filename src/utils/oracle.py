@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Callable, Optional
-from lxml import etree as ET
 import subprocess
 
 
@@ -10,17 +9,6 @@ EXIT_MESSAGES = {
 	3: "BaseX server not reachable",
 	4: "BaseX .jar file not found",
 }
-
-
-# safe XML parser
-SAFE_PARSER = ET.XMLParser(
-	resolve_entities=False, 
-	load_dtd        =False, 
-	no_network      =True, 
-	dtd_validation  =False, 
-	recover         =False, 
-	huge_tree       =False
-)
 
 
 def build_oracle(
@@ -46,15 +34,11 @@ def build_oracle(
 
 	def oracle(candidate:str) -> tuple[bool, bool]:
 		"""
-		Perform pre-check(s) and invoke oracle on candidate string.
+		Invoke oracle on candidate string.
 
 		:param candidate: input string.
-		:returns: tuple of (is interesting, is well formed) booleans.
+		:returns: is interesting boolean.
 		"""
-		
-		# (optimization) fail fast early: well-formedness pre-check
-		try: ET.fromstring(candidate, parser=SAFE_PARSER)
-		except Exception: return False, False
 
 		# write candidate to file and atomically replace
 		tmp_path = xml_path.with_suffix(xml_path.suffix + ".tmp")
@@ -78,7 +62,7 @@ def build_oracle(
 			)
 
 		# fail on timeout
-		except subprocess.TimeoutExpired: return False, True
+		except subprocess.TimeoutExpired: return False
 
 		# handle breaking errors
 		if proc.returncode > 1: 
@@ -87,6 +71,6 @@ def build_oracle(
 			raise SystemExit(proc.returncode)
 
 		# "interesting" if desired error (retcode=0)
-		return proc.returncode == 0, True
+		return proc.returncode == 0
 
 	return oracle
