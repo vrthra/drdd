@@ -5,11 +5,10 @@ import os
 import re
 import subprocess
 import sys
-import time
 import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Optional, Tuple, List, Any
+from typing import Dict, Optional, Tuple
+import signal
 
 
 PROGRAM_DIR = Path(__file__).resolve().parent
@@ -142,26 +141,31 @@ def run_one(
 		
 		proc = subprocess.Popen(
 			cmd,
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			text=True,
-			bufsize=1,
-			env=env
+			stdout            = f_out,
+			stderr            = f_err,
+			env               = env,
+			start_new_session = True
 		)
 
-		 # stream stdout
-		for line in proc.stdout:
-			f_out.write(line)
-			f_out.flush()
-			stdout_buf.append(line)
-
-		# stream stderr
-		for line in proc.stderr:
-			f_err.write(line)
-			f_err.flush()
-			stderr_buf.append(line)
+		try: proc.wait()
 		
-		proc.wait()
+		# send keyboard interrupt to child
+		except KeyboardInterrupt:
+
+			# ask child subprocess to stop
+			try: os.killpg(proc.pid, signal.SIGINT)
+			except ProcessLookupError: pass
+			
+			# escalate if timeout expired
+			try: proc.wait(timeout=10)
+			except subprocess.TimeoutExpired: os.killpg(proc.pid, signal.SIGKILL)
+			
+			raise
+
+		stdout = stdout_out.read_text(encoding="utf-8", errors="replace")
+		stderr = stderr_out.read_text(encoding="utf-8", errors="replace")
+		
+		min_len, oracle_calls = parse_minimize_stdout(stdout)
 
 		end_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -238,16 +242,6 @@ def main():
 		help="Output CSV path"
 	)
 
-	# default jobs to CPU count (fallback to 1 if unavailable)
-	default_jobs = os.cpu_count() // 2 or 1
-	
-	p.add_argument(
-		"--jobs",
-		type=int,
-		default=default_jobs,
-		help=f"Number of parallel runs (default: {default_jobs})"
-	)
-
 	args = p.parse_args()
 
 	pred_root = Path(args.pred_root).resolve()
@@ -266,9 +260,6 @@ varying sizes. Using perf for additional profiling (note: run sudo
 sysctl -w kernel.perf_event_paranoid=0 for profiling CPU events).
 
 Command: basexserver_wrapper --verbose -- perf stat -x , -o <path> minimize_xml --module <variant> --verbose --ramdisk <case_dir> --input <path> --output <path>
-
-Benchmark Parameters:
- - Max. concurrent runs: {args.jobs}
  
 Test Cases: {"".join([f"\n - {case}" for case in cases])}
 
@@ -300,46 +291,23 @@ See output parent dir for artefacts.
 		print("No test candidates.")
 		return
 	
-	if args.jobs <= 1:
-		for i, (case_dir, rel_input, module) in enumerate(tasks):
-			rows[i] = run_one(case_dir, rel_input, module, result_dir)
+	for i, (case_dir, rel_input, module) in enumerate(tasks):
+		print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}] (start | id:{i}) {module}\t...\t{case_dir.name}/{rel_input}")
 
-	else:
-		with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-			futures = {}
+		try: rows[i] = run_one(case_dir, rel_input, module, result_dir)
 
-			for i, (case_dir, rel_input, module) in enumerate(tasks):
-				print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}] (start | id:{i}) {module}\t...\t{case_dir.name}/{rel_input}")
-				
-				fut = ex.submit(run_one, case_dir, rel_input, module, result_dir)
-				futures[fut] = i
-				
-				# delay to account for BaseXServer startup
-				time.sleep(1)
+		except Exception as e:
+			rows[i] = {
+				"timestamp_start": "",
+				"timestamp_end":   "",
+				"predicate":       case_dir.name,
+				"variant":         rel_input.stem,
+				"algorithm":       module,
+				"return_code":     -1,
+				"error":           f"exception: {e}"
+			}
 
-
-			for fut in as_completed(futures):
-				i = futures[fut]				
-				
-				case_dir, rel_input, module = tasks[i]
-				
-				try: 
-					rows[i] = fut.result()
-					
-					print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}]  (done | id:{i}) completed test successfully")
-				
-				except Exception as e:
-					rows[i] = {
-						"timestamp_start": "",
-						"timestamp_end":   "",
-						"predicate":       case_dir.name,
-						"variant":         rel_input.stem,
-						"algorithm":       module,
-						"return_code":     -1,
-						"error":           f"exception: {e}"
-					}
-
-					print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}]  (fail | id:{i}) exception: {e}")
+			print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}]  (fail | id:{i}) exception: {e}")
 
 	# build fieldnames in deterministic order: first by first appearance across rows
 	fieldnames = []
