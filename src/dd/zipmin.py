@@ -96,8 +96,6 @@ def minimize(
 
 			if stats: n_total_oracalls += deficit
 			  
-			deficit = 0
-		
 		# ...and complement sweep
 		else:
 			reduced = complement_sweep(pre, target, post, partlen, oracle)
@@ -105,7 +103,7 @@ def minimize(
 			n_sweep_total_oracalls = ceil(len(target) / partlen)
 			
 			# compute deficit: max(no. of oracle calls that lead to no change)
-			deficit  = max(n_sweep_total_oracalls - (len(target) - len(reduced)), 0)
+			deficit = max(n_sweep_total_oracalls - (len(target) - len(reduced)), 0)
 
 			if stats: n_total_oracalls += n_sweep_total_oracalls
 	
