@@ -11,7 +11,6 @@ Install the project in editable mode so changes under `src/` are picked up witho
 - Python 3.8+
 - `pip` and `venv`
 - Java 11+ (required by the BaseX/Saxon utilities used in the benchmarking scripts)
-- Linux `perf` tools for capturing CPU metrics; install the `perf` package and ensure `kernel.perf_event_paranoid` permits access
 
 ### Steps
 

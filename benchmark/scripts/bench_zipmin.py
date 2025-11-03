@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import datetime
+import time
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 import signal
@@ -52,50 +53,14 @@ def parse_minimize_stdout(stdout:str) -> Tuple[Optional[int], Optional[int]]:
 	return min_len, oracle_calls
 
 
-def parse_perf_stat_csv(path:Path) -> Dict[str, float]:
-	"""Parse perf stat CSV and return a dict of normalized keys to numeric values."""
-
-	def norm_key(s:str) -> str:
-		s = s.lower()
-		
-		return (
-			s.replace(" ", "_")
-			 .replace("-", "_")
-			 .replace("/", "_per_")
-			 .strip("_")
-		)
-
-	metrics: Dict[str, float] = {}
-
-	try: txt = path.read_text(encoding="utf-8", errors="replace")
-	except Exception: return metrics
-
-	reader = csv.reader(txt.splitlines())
-
-	for row in reader:
-		if not row or row[0].startswith("#"): continue
-
-		value, unit, event, runtime, scale, metric, description = row
-
-		if value: metrics[f"{norm_key(event)}{f'({unit})' if unit else ''}"] = float(value)
-		if metric: metrics[norm_key(description)]                            = float(metric)
-
-	return metrics
-
-
 def run_one(
 	case_dir:Path, 
 	rel_input:Path, 
 	module:str,
 	result_dir:str) -> Dict[str, object]:
 	
-	"""Run one minimization via perf + wrapper and gather metrics."""
+	"""Run one minimization via wrapper and gather metrics."""
 	
-	# prepare perf file path unique per run
-	perf_dir = PROGRAM_DIR.parent / "runs" / result_dir / "perf"
-	perf_out = perf_dir / f"perf_{case_dir.name}_{rel_input.stem}_{module.replace(".", "-")}.out"
-	perf_out.parent.mkdir(parents=True, exist_ok=True)
-
 	# prepare out file path per run
 	min_dir = PROGRAM_DIR.parent / "runs" / result_dir / "minimized"
 	min_out = min_dir / f"{case_dir.name}_{rel_input.stem}.min-{module.replace(".", "-")}.xml"
@@ -112,7 +77,6 @@ def run_one(
 	scripts_dir = PROGRAM_DIR.parents[1] / "scripts"
 
 	cmd = [str(scripts_dir / "basexserver_wrapper"), "--verbose", "--"]
-	cmd += ["perf", "stat", "-x", ",", "-o", str(perf_out)]
 	cmd += [
 		str(scripts_dir / "minimize_xml"),
 		"--module", module,
@@ -123,21 +87,19 @@ def run_one(
 		"--output", str(min_out)
 	]
 
-	# stable number formatting for perf output
+	# stable number formatting for subprocess output
 	env = os.environ.copy()
 	env.setdefault("LC_ALL", "C")
 
 	# force unbuffered Python for any Python children
 	env["PYTHONUNBUFFERED"] = "1"
 
-	stdout_buf = []
-	stderr_buf = []
-
 	# run test
 	with stdout_out.open("w", encoding="utf-8") as f_out, \
 		 stderr_out.open("w", encoding="utf-8") as f_err:
 		 
-		start_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+		start_ts   = datetime.datetime.now(datetime.timezone.utc).isoformat()
+		start_perf = time.perf_counter()
 		
 		proc = subprocess.Popen(
 			cmd,
@@ -148,7 +110,7 @@ def run_one(
 		)
 
 		try: proc.wait()
-		
+
 		# send keyboard interrupt to child
 		except KeyboardInterrupt:
 
@@ -162,16 +124,12 @@ def run_one(
 			
 			raise
 
+		finally: end_perf = time.perf_counter()
+		
 		stdout = stdout_out.read_text(encoding="utf-8", errors="replace")
 		stderr = stderr_out.read_text(encoding="utf-8", errors="replace")
-		
-		min_len, oracle_calls = parse_minimize_stdout(stdout)
 
-		end_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
-
-	# program outputs
-	stdout = "".join(stdout_buf)
-	stderr = "".join(stderr_buf)
+	end_ts  = datetime.datetime.now(datetime.timezone.utc).isoformat()
 	retcode = proc.returncode
 
 	min_len, oracle_calls = parse_minimize_stdout(stdout)
@@ -186,32 +144,26 @@ def run_one(
 	reduction_bytes = input_bytes - output_bytes if (input_bytes >= 0 and output_bytes >= 0) else ""
 	reduction_ratio = (output_bytes / input_bytes) if (input_bytes > 0 and output_bytes >= 0) else ""
 
-	perf = parse_perf_stat_csv(perf_out)
-
 	row: Dict[str, object] = {
-		"timestamp_start":    start_ts,
-		"timestamp_end":      end_ts,
-		"predicate":          case_dir.name,
-		"variant":            rel_input.stem,
-		"algorithm":          module,
-		"return_code":        retcode,
-		"minimized_length":   min_len,
-		"oracle_invocations": oracle_calls,
-		"input_bytes":        input_bytes,
-		"input_sha256":       input_sha,
-		"output_bytes":       output_bytes if output_bytes >= 0 else "",
-		"output_sha256":      output_sha,
-		"reduction_bytes":    reduction_bytes,
-		"reduction_ratio":    reduction_ratio,
+		"timestamp_start"    : start_ts,
+		"timestamp_end"      : end_ts,
+		"wall_time_seconds"  : end_perf - start_perf,
+		"predicate"          : case_dir.name,
+		"variant"            : rel_input.stem,
+		"algorithm"          : module,
+		"minimized_length"   : min_len,
+		"oracle_invocations" : oracle_calls,
+		"input_bytes"        : input_bytes,
+		"input_sha256"       : input_sha,
+		"output_bytes"       : output_bytes if output_bytes >= 0 else "",
+		"output_sha256"      : output_sha,
+		"reduction_bytes"    : reduction_bytes,
+		"reduction_ratio"    : reduction_ratio,
+		"return_code"        : retcode
 	}
 
-	# merge perf metrics (prefix with "perf_")
-	for k, v in perf.items():
-		row[f"perf_{k}"] = v
-
 	# optional troubleshooting logs (not used for CSV parsing)
-	if retcode != 0:
-		row["error"] = f"rc={retcode}"
+	if retcode != 0: row["error"] = f"rc={retcode}"
 
 	return row
 
@@ -256,10 +208,9 @@ def main():
 	print(f"""Benchmark: ZipMin vs. DDMin
 
 Running dd.zipmin vs. dd.ddmin on {len(cases)} XML test cases of 
-varying sizes. Using perf for additional profiling (note: run sudo 
-sysctl -w kernel.perf_event_paranoid=0 for profiling CPU events).
+varying sizes. Measuring wall-clock time directly in Python.
 
-Command: basexserver_wrapper --verbose -- perf stat -x , -o <path> minimize_xml --module <variant> --verbose --ramdisk <case_dir> --input <path> --output <path>
+Command: basexserver_wrapper --verbose -- minimize_xml --module <variant> --verbose --ramdisk <case_dir> --input <path> --output <path>
  
 Test Cases: {"".join([f"\n - {case}" for case in cases])}
 
@@ -292,7 +243,7 @@ See output parent dir for artefacts.
 		return
 	
 	for i, (case_dir, rel_input, module) in enumerate(tasks):
-		print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}] (start | id:{i}) {module}\t...\t{case_dir.name}/{rel_input}")
+		print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] (start | id:{i}) {module}\t...\t{case_dir.name}/{rel_input}")
 
 		try: rows[i] = run_one(case_dir, rel_input, module, result_dir)
 
@@ -307,7 +258,7 @@ See output parent dir for artefacts.
 				"error":           f"exception: {e}"
 			}
 
-			print(f"[{datetime.datetime.now().strftime("%H:%M:%S")}]  (fail | id:{i}) exception: {e}")
+			print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}]  (fail | id:{i}) exception: {e}")
 
 	# build fieldnames in deterministic order: first by first appearance across rows
 	fieldnames = []
