@@ -16,6 +16,8 @@ PROGRAM_DIR = Path(__file__).resolve().parent
 
 
 def sha256_hex(path:Path) -> str:
+	"""Compute the SHA-256 digest of the given file and return it as hex."""
+
 	with path.open("rb") as f:
 		h = hashlib.sha256()
 		
@@ -26,6 +28,8 @@ def sha256_hex(path:Path) -> str:
 	
 
 def file_size_bytes(path:Path) -> int:
+	"""Convenience function to get file size in bytes."""
+	
 	return path.stat().st_size
 
 
@@ -33,7 +37,7 @@ def parse_minimize_stdout(stdout:str) -> Tuple[Optional[int], Optional[int]]:
 	"""
 	Parse minimize_xml stdout for:
 
-	- Minimized length: <bytes>
+	- Minimized length:   <bytes>
  	- Oracle invocations: <count>
 	"""
 	
@@ -44,9 +48,9 @@ def parse_minimize_stdout(stdout:str) -> Tuple[Optional[int], Optional[int]]:
 	oracle_calls = None
 
 	for line in stdout.splitlines():
-		if min_len is None and (match := RE_MIN_LEN.search(line)): min_len = int(match.group(1))
+		if min_len is None and (match := RE_MIN_LEN.search(line)):        min_len      = int(match.group(1))
 		if oracle_calls is None and (match := RE_ORA_CALLS.search(line)): oracle_calls = int(match.group(1))
-		if min_len is not None and oracle_calls is not None: break
+		if None not in (min_len, oracle_calls):                           break
 
 	if not all([min_len, oracle_calls]): raise RuntimeError("Malformed output - could not parse minimized length / oracle calls")
 
@@ -66,11 +70,12 @@ def run_one(
 	min_out = min_dir / f"{case_dir.name}_{rel_input.stem}.min-{module.replace(".", "-")}.xml"
 	min_out.parent.mkdir(parents=True, exist_ok=True)
 
-	# prepare log file path per run
+	# prepare log files path per run
 	log_dir    = PROGRAM_DIR.parent / "runs" / result_dir / "logs"
 	log_stem   = f"{case_dir.name}_{rel_input.stem}_{module.replace(".", "-")}"
 	stdout_out = log_dir / f"{log_stem}.stdout"
 	stderr_out = log_dir / f"{log_stem}.stderr"
+	
 	stdout_out.parent.mkdir(parents=True, exist_ok=True)
 
 	# build command
