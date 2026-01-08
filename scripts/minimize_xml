@@ -59,7 +59,7 @@ def main():
 	p.add_argument(
 		"--ram-root",
 		type=Path,
-		default="/dev/shyam",
+		default="/dev/shm",
 		help="Root directory of tmpfs to use with --ramdisk (default: /dev/shm)",
 	)
 	
