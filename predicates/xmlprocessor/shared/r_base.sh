@@ -9,15 +9,6 @@ BASEX_BAD_PORT=$((BASEX_GOOD_PORT + 1))
 
 INPUT_NAME=${3:-input.xml}
 
-# run saxon
-target_saxon="saxon"
-java -cp "${LIB_DIR}/saxon-he-12.4.jar:${LIB_DIR}/xmlresolver-5.2.0/lib/*" net.sf.saxon.Query -s:"$SCRIPT_DIR/$INPUT_NAME" -q:"$SCRIPT_DIR/query.xq" > ${target_saxon}_raw_result.xml 2>&1
-ret=$?
-	
-if [ $ret != 0 ]; then
-	exit 1
-fi
-
 # ensure servers are reachable on the given ports
 check_listening() {
 	local host="$1" port="$2"
@@ -26,8 +17,35 @@ check_listening() {
 	nc -z "$host" "$port" >/dev/null 2>&1
 }
 
-# run basex_bad
+target_saxon="saxon"
 target_basex_bad="basex_bad"
+target_basex_good="basex_good"
+
+cleanup() {
+	local ec=$?
+
+	rm -f \
+		"${SCRIPT_DIR}/${target_saxon}_raw_result.xml" \
+		"${SCRIPT_DIR}/${target_saxon}_processed_result.txt" \
+		"${SCRIPT_DIR}/${target_basex_bad}_raw_result.xml" \
+		"${SCRIPT_DIR}/${target_basex_bad}_processed_result.txt" \
+		"${SCRIPT_DIR}/${target_basex_good}_raw_result.xml" \
+		"${SCRIPT_DIR}/${target_basex_good}_processed_result.txt"
+
+	exit "$ec"
+}
+
+trap cleanup EXIT
+
+# run saxon
+java -cp "${LIB_DIR}/saxon-he-12.4.jar:${LIB_DIR}/xmlresolver-5.2.0/lib/*" net.sf.saxon.Query -s:"$SCRIPT_DIR/$INPUT_NAME" -q:"$SCRIPT_DIR/query.xq" > ${target_saxon}_raw_result.xml 2>&1
+ret=$?
+	
+if [ $ret != 0 ]; then
+	exit 1
+fi
+
+# run basex_bad
 java -cp "${LIB_DIR}/basex-${BAD_VERSION}.jar" org.basex.BaseXClient -n "$HOST" -p "$BASEX_BAD_PORT" -U admin -P password -i "$SCRIPT_DIR/$INPUT_NAME" "$SCRIPT_DIR/query.xq" > ${target_basex_bad}_raw_result.xml 2>&1
 ret=$?
 
@@ -44,7 +62,6 @@ if [ $ret != 0 ]; then
 fi
 
 # run basex_good
-target_basex_good="basex_good"
 java -cp "${LIB_DIR}/basex-${GOOD_VERSION}.jar" org.basex.BaseXClient -n "$HOST" -p "$BASEX_GOOD_PORT" -U admin -P password -i "$SCRIPT_DIR/$INPUT_NAME" "$SCRIPT_DIR/query.xq" > ${target_basex_good}_raw_result.xml 2>&1
 ret=$?
 
