@@ -59,7 +59,7 @@ def main():
 	p.add_argument(
 		"--ram-root",
 		type=Path,
-		default="/dev/shm",
+		default="/dev/shyam",
 		help="Root directory of tmpfs to use with --ramdisk (default: /dev/shm)",
 	)
 	
@@ -87,6 +87,7 @@ def main():
 
 	run_base = base_path
 	ramdir   = None
+	used_ramdisk = False
 	
 	# optimization: run from a RAM-disk copy under /dev/shm
 	if args.ramdisk:
@@ -100,8 +101,10 @@ def main():
 			])
 
 			run_base = ramdir.path / base_path.name
+			used_ramdisk = True
 		
-		except RamDiskUnavailable as e: print(f"Warning: {e}; running in-place", file=sys.stderr)
+		except RamDiskUnavailable as e:
+			print(f"Warning: {e}; running in-place", file=sys.stderr)
 
 	# read input.xml to string
 	original = xml_path.read_text(encoding="utf-8")
@@ -149,8 +152,8 @@ def main():
 	finally:
 		if args.verbose: print("\nCleaning up...")
 		
-		# restore original input.xml content
-		if not args.ramdisk: 
+		# restore original input.xml content when we operated in-place
+		if not used_ramdisk: 
 			if args.verbose: print(f" - Restoring original input ({xml_path})...")
 			xml_path.write_text(original, encoding="utf-8")
 
