@@ -1,45 +1,62 @@
 # Scripts
 
-Helper commands to run and benchmark the XML delta‑debugging workflows in this repo. These are thin CLIs; core logic lives under `src/`.
+CLI tools for minimization and input preparation. Run from the repo root with `PYTHONPATH=src`.
 
-## Prerequisites
+## `minimize_xml`
 
-- **Python 3.8+** and the package in editable mode, or set `PYTHONPATH=src`:
+Minimizes an XML file against a BaseX-backed predicate. Starts a good/bad BaseX server pair internally.
 
-	- Recommended quick setup: 
-	
-		```Bash
-		python -m venv .venv && source .venv/bin/activate && python -m pip install -U pip && python -m pip install -e .
-		```
+```
+usage: minimize_xml <predicate_dir> [--input FILE] [--output FILE]
+                    [--algorithm ALGO] [--verbose]
 
-- **Java (JDK 11+)**. Used by Saxon and BaseX clients/servers.
+  predicate_dir   path to a predicate directory (must contain config.toml and query.xq)
+  --input         input filename within predicate_dir  (default: input.xml)
+  --output        output filename within predicate_dir (default: input.min.xml)
+  --algorithm     one of: cdd, ddmin, pmadd, probdd, ttmin  (default: ddmin)
+  --verbose       print per-step progress
+```
 
-- `nc`/`netcat` available on PATH.
+```bash
+scripts/minimize_xml predicates/xml/xml-1e9bc83-1 \
+    --input input.pick/1.xml --algorithm ttmin --verbose
+```
 
-- Predicate assets under `predicates/xmlprocessor/` (already included: Saxon JAR, BaseX JARs, shared scripts).
+## `minimize_ffmpeg`
 
-## Binaries
+Minimizes a binary file against an FFmpeg ASAN predicate. No server setup required.
 
-All binaries provide usage help via the `-h` flag.
+```
+usage: minimize_ffmpeg <predicate_dir> [--input FILE] [--output FILE]
+                       [--algorithm ALGO] [--script FILE] [--verbose]
 
-- `scripts/basexserver_wrapper` (bash)
-	- Starts a matching pair of BaseX servers (good/bad) on free contiguous ports.
-	- Finds the nearest predicate dir (by locating a `v.sh` in subcommand args).
-	- Exports the selected good port to the subcommand by appending `--good-port <PORT>`.
-	- Cleans up servers on exit.
+  --input         input filename within predicate_dir  (default: input)
+  --output        output filename within predicate_dir (default: input.min)
+```
 
-- `scripts/cherry_pick` (python)
-	- Randomly removes XML element subtrees while the predicate stays “interesting” and size stays within bounds.
-	- Typical flags: `--min-kb`, `--max-kb`, `--seed`, `--ramdisk`, `--output`, `--verbose`.
+```bash
+scripts/minimize_ffmpeg predicates/ffmpeg/ffmpeg-466799d-1 \
+    --algorithm pmadd --verbose
+```
 
-- `scripts/minimize_xml` (python)
-	- Runs a minimization algorithm from a Python module (default `dd.ddmin`) against the predicate.
-	- Typical flags: `--module`, `--ramdisk`, `--output`, `--verbose`.
+## `cherrypick_xml`
 
-## Tips
+Stochastically shrinks an XML file to a target size range while preserving oracle satisfaction. Used by `make -C predicates/xml` to generate `input.pick/` variants; rarely needed directly.
 
-- **RAM‑disk:** Add `--ramdisk` to copy the predicate to `/dev/shm` for faster I/O. Output paths are still relative to the predicate dir.
+```
+usage: cherrypick_xml <predicate> [--input FILE] [--output FILE]
+                      [--min-kb N] [--max-kb N] [--seed N]
+                      [--max-attempts N] [--max-consecutive-fails N] [--verbose]
 
-- **Ports:** Without the wrapper, tools read `--good-port` (or `BASEX_GOOD_PORT`) to reach an already running BaseX “good” server. The wrapper handles port selection automatically.
+  predicate               path to a predicate directory (must contain config.toml and query.xq)
+  --min-kb                lower bound on output size in KB           (default: 5)
+  --max-kb                upper bound on output size in KB           (default: 10)
+  --seed                  random seed for reproducibility
+  --max-attempts          max node removal attempts                  (default: 100000)
+  --max-consecutive-fails stop after N consecutive oracle rejections (default: 50)
+```
 
-- **Cleanups:** Tools restore `input.xml` after finishing and remove RAM‑disk copies when used.
+```bash
+scripts/cherrypick_xml predicates/xml/xml-1e9bc83-1 \
+    --input input.xml --output input.pick/1.xml --min-kb 0 --max-kb 1 --verbose
+```

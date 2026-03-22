@@ -1,46 +1,99 @@
-# ZipMin Delta Debugger (DD) Benchmarking
+# Delta Debugging Benchmark Suite
 
-Repository containing benchamrking tools for improved Delta Debugging algorithms (ZipMin) and pipelines.
+> Implementations and benchmarks of five Delta Debugging algorithms against real-world bug-reproducing predicates.
 
-## Setup (Editable Install)
+Delta Debugging isolates the minimal input that causes a program to fail. This repo implements five algorithms — from the classical baseline to probabilistic and monotonicity-aware variants — and benchmarks them against two families of real-world predicates: XML query discrepancy bugs and FFmpeg memory-safety crashes.
 
-Install the project in editable mode so changes under `src/` are picked up without reinstalling.
+## Algorithms
 
-### Prerequisites
+| Module | Algorithm | Strategy |
+|--------|-----------|----------|
+| `dd.ddmin` | **DDMin** | Classical binary search over subsets |
+| `dd.cdd` | **CDD** | Adaptive subset sizing with probabilistic decay |
+| `dd.probdd` | **ProbDD** | Per-element removal probabilities, updated on failure |
+| `dd.pmadd` | **PmaDD** | Monotonicity-aware skipping via confidence scoring |
+| `dd.ttmin` | **TTMin** | Alternating prefix-zip and complement sweep |
 
-- Python 3.8+
-- `pip` and `venv`
-- Java 11+ (required by the BaseX/Saxon utilities used in the benchmarking scripts)
+All algorithms share the same interface: `minimize(target, oracle, ...)` operates on any ordered sequence and accepts any callable predicate.
 
-### Steps
+## Predicates
 
-1. Create and activate a virtual environment
+| Family | Cases | Bug type |
+|--------|-------|----------|
+| [`predicates/xml/`](predicates/xml/) | 5 × 5 variants | XQuery output discrepancy between BaseX versions |
+| [`predicates/ffmpeg/`](predicates/ffmpeg/) | 4 cases | ASAN heap-buffer-overflow / LeakSanitizer |
 
-   ```Bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+## Setup
 
-2. Upgrade build tools (optional but recommended)
+Requires **Python 3.11+**. Java 11+ and `nc` are additionally needed for XML predicates.
 
-   ```Bash
-   python -m pip install -U pip setuptools wheel
-   ```
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
 
-3. Install this repo in editable mode (src-layout)
+Verify:
 
-   ```Bash
-   python -m pip install -e .
-   ```
+```bash
+python -c "import dd; print(dd.ALGORITHMS)"
+# ('cdd', 'ddmin', 'pmadd', 'probdd', 'ttmin')
+```
 
-### Verify
+## Quick Start
 
-- `python -c "import dd, inspect; print(dd.__file__)"` should print a path inside `src/dd`.
+**Minimize an XML file** (starts a BaseX server pair internally):
 
-- Run tests: `PYTHONPATH=src python -m unittest -v` or use any provided scripts under `scripts/`.
+```bash
+python scripts/minimize_xml predicates/xml/xml-1e9bc83-1 \
+    --input input.pick/1.xml --algorithm ttmin --verbose
+```
 
-### Notes
+**Minimize an FFmpeg input** (no server needed):
 
-- The package discovery is configured for a `src/` layout via `pyproject.toml`, so editable installs work out-of-the-box.
+```bash
+python scripts/minimize_ffmpeg predicates/ffmpeg/ffmpeg-466799d-1 \
+    --algorithm pmadd --verbose
+```
 
-- Re-run `pip install -e .` only when you change packaging metadata (dependencies, entry points) in `pyproject.toml`.
+**Use an algorithm directly:**
+
+```python
+from dd.ddmin import minimize
+from core.oracle import Oracle
+
+result = minimize(
+    target = list("aaaaabaaaa"),
+    oracle = Oracle(lambda s: "b" in "".join(s)),
+)
+
+print("".join(result))  # "b"
+```
+
+## Repository Layout
+
+| Path | Description |
+|------|-------------|
+| `src/dd/` | Minimization algorithms (`ddmin`, `cdd`, `probdd`, `pmadd`, `ttmin`) |
+| `src/bench/` | Benchmark harness and minimizer wrapper |
+| `src/infra/` | BaseX server pair management |
+| `src/utils/` | Oracle, logging, text formatting |
+| `scripts/` | `minimize_xml`, `minimize_ffmpeg`, `cherrypick_xml` |
+| `predicates/xml/` | XML query discrepancy bugs — 5 cases × 5 variants |
+| `predicates/ffmpeg/` | FFmpeg ASAN bugs — 4 cases |
+| `benchmark/` | `bench_xml.py`, `bench_ffmpeg.py`, result runs |
+| `tests/` | Sanity tests |
+
+## Benchmarking
+
+```bash
+python benchmark/scripts/bench_xml.py      # XML: all 5 algorithms × 25 inputs
+python benchmark/scripts/bench_ffmpeg.py   # FFmpeg: all 5 algorithms × 4 inputs
+```
+
+Results are written to `benchmark/runs/<label>_<date>_git-<sha>/result_*.csv`.
+
+## Tests
+
+```bash
+python -m unittest -v
+```

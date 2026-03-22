@@ -1,0 +1,1 @@
+ALGORITHMS = ("cdd", "ddmin", "pmadd", "probdd", "ttmin")

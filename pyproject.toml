@@ -6,13 +6,17 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tailprobe-dd"
+name = "dd-lab"
 version = "0.1.0"
-description = "Tail-probe Delta Debugging utilities"
+description = "Delta Debugging algorithm implementations and benchmark infrastructure"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
 	{ name = "Aarush Kumbhakern" },
+]
+dependencies = [
+	"defusedxml",
+	"saxonche",
 ]
 
 [tool.setuptools]
