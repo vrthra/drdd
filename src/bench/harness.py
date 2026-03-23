@@ -135,7 +135,7 @@ def run_all(tasks:list[BenchTask], run_dir:Path) -> None:
 
 				lf.write(f"predicate  : {task.predicate}\n")
 				lf.write(f"algorithm  : {task.algorithm}\n")
-				lf.write(f"input_size : {input_bytes} B\n")
+				lf.write(f"input_size : {fmt_bytes(input_bytes)}\n")
 				lf.write(f"started    : {ts_start.isoformat()}\n\n")
 
 				log = HarnessLog(
