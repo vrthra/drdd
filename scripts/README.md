@@ -18,7 +18,7 @@ usage: minimize_xml <predicate_dir> [--input FILE] [--output FILE]
 ```
 
 ```bash
-scripts/minimize_xml predicates/xml/xml-1e9bc83-1 \
+scripts/minimize_xml predicates/xml/ticket-1e9bc83-1 \
     --input input.pick/1.xml --algorithm ttmin --verbose
 ```
 
@@ -35,7 +35,7 @@ usage: minimize_ffmpeg <predicate_dir> [--input FILE] [--output FILE]
 ```
 
 ```bash
-scripts/minimize_ffmpeg predicates/ffmpeg/ffmpeg-466799d-1 \
+scripts/minimize_ffmpeg predicates/ffmpeg/ticket-10699 \
     --algorithm pmadd --verbose
 ```
 
@@ -57,6 +57,6 @@ usage: cherrypick_xml <predicate> [--input FILE] [--output FILE]
 ```
 
 ```bash
-scripts/cherrypick_xml predicates/xml/xml-1e9bc83-1 \
+scripts/cherrypick_xml predicates/xml/ticket-1e9bc83-1 \
     --input input.xml --output input.pick/1.xml --min-kb 0 --max-kb 1 --verbose
 ```

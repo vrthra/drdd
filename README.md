@@ -21,7 +21,7 @@ All algorithms share the same interface: `minimize(target, oracle, ...)` operate
 | Family | Cases | Bug type |
 |--------|-------|----------|
 | [`predicates/xml/`](predicates/xml/) | 5 × 5 variants | XQuery output discrepancy between BaseX versions |
-| [`predicates/ffmpeg/`](predicates/ffmpeg/) | 4 cases | ASAN heap-buffer-overflow / LeakSanitizer |
+| [`predicates/ffmpeg/`](predicates/ffmpeg/) | 13 cases | ASAN heap-buffer-overflow / LeakSanitizer |
 
 ## Setup
 
@@ -35,7 +35,7 @@ pip install -e .
 Verify:
 
 ```bash
-python -c "import dd; print(dd.ALGORITHMS)"
+python -c "import algos; print(algos.ALGORITHMS)"
 # ('cdd', 'ddmin', 'pmadd', 'probdd', 'ttmin')
 ```
 
@@ -44,26 +44,25 @@ python -c "import dd; print(dd.ALGORITHMS)"
 **Minimize an XML file** (starts a BaseX server pair internally):
 
 ```bash
-python scripts/minimize_xml predicates/xml/xml-1e9bc83-1 \
+python scripts/minimize_xml predicates/xml/ticket-1e9bc83-1 \
     --input input.pick/1.xml --algorithm ttmin --verbose
 ```
 
 **Minimize an FFmpeg input** (no server needed):
 
 ```bash
-python scripts/minimize_ffmpeg predicates/ffmpeg/ffmpeg-466799d-1 \
+python scripts/minimize_ffmpeg predicates/ffmpeg/ticket-10699 \
     --algorithm pmadd --verbose
 ```
 
 **Use an algorithm directly:**
 
 ```python
-from dd.ddmin import minimize
-from core.oracle import Oracle
+from algos.ddmin import minimize
 
 result = minimize(
     target = list("aaaaabaaaa"),
-    oracle = Oracle(lambda s: "b" in "".join(s)),
+    oracle = lambda s: "b" in "".join(s),
 )
 
 print("".join(result))  # "b"
@@ -73,13 +72,14 @@ print("".join(result))  # "b"
 
 | Path | Description |
 |------|-------------|
-| `src/dd/` | Minimization algorithms (`ddmin`, `cdd`, `probdd`, `pmadd`, `ttmin`) |
+| `src/algos/` | Minimization algorithms (`ddmin`, `cdd`, `probdd`, `pmadd`, `ttmin`) |
 | `src/bench/` | Benchmark harness and minimizer wrapper |
-| `src/infra/` | BaseX server pair management |
-| `src/utils/` | Oracle, logging, text formatting |
+| `src/core/` | Oracle base class and logging |
+| `src/drivers/` | FFmpeg, XML (saxonche), and BaseX drivers |
+| `src/utils/` | Text formatting utilities |
 | `scripts/` | `minimize_xml`, `minimize_ffmpeg`, `cherrypick_xml` |
 | `predicates/xml/` | XML query discrepancy bugs — 5 cases × 5 variants |
-| `predicates/ffmpeg/` | FFmpeg ASAN bugs — 4 cases |
+| `predicates/ffmpeg/` | FFmpeg ASAN bugs — 13 cases |
 | `benchmark/` | `bench_xml.py`, `bench_ffmpeg.py`, result runs |
 | `tests/` | Sanity tests |
 

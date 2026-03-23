@@ -10,7 +10,7 @@ Requires Java 11+ and `nc`.
 python benchmark/scripts/bench_xml.py
 ```
 
-Discovers all `xml-*` cases under `predicates/xml/`, runs every algorithm × every input variant (1–5), and writes results under `benchmark/runs/`.
+Discovers all `ticket-*` cases under `predicates/xml/`, runs every algorithm × every input variant (1–5), and writes results under `benchmark/runs/`.
 
 Seed inputs (`input.pick/1.xml` … `5.xml`) are already checked in. Regenerate them when predicate inputs change:
 
@@ -25,7 +25,7 @@ make -C predicates/xml clean     # remove all input.pick/ dirs
 python benchmark/scripts/bench_ffmpeg.py
 ```
 
-Discovers all `ffmpeg-*` cases under `predicates/ffmpeg/`, runs every algorithm against each case's `input` binary. No server setup required.
+Discovers all `ticket-*` cases under `predicates/ffmpeg/` (excluding `x-ticket-*`), runs every algorithm against each case's `input` binary. No server setup required.
 
 Requires `predicates/ffmpeg/lib/ffmpeg_g`. Build it first if missing:
 
