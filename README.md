@@ -8,11 +8,11 @@ This repository implements five Delta Debugging algorithms and benchmarks them a
 
 | Algorithm | Strategy | Literature |
 |-----------|----------|------------|
-| [`DDMin`](src/algos/ddmin.py) | Classical binary search over subsets | ¹
+| [`DDMin`](src/algos/ddmin.py) | Classical binary search over subsets | -
 | [`ProbDD`](src/algos/probdd.py) | Per-element removal probabilities, updated on failure | [Wang et al.](https://doi.org/10.1145/3468264.3468625)
 | [`CDD`](src/algos/cdd.py) | Adaptive subset sizing with probabilistic decay | [Zhang et al.](https://doi.org/10.1109/ICSE55347.2025.00117)
 | [`PmaDD`](src/algos/pmadd.py) | Monotonicity-aware skipping via confidence scoring | [Tao et al.](https://doi.org/10.1145/3756681.3756940)
-| [`TTMin`](src/algos/ttmin.py) | Alternating prefix-zip and complement sweep | ¹²
+| [`TTMin`](src/algos/ttmin.py) | Alternating prefix-zip and complement sweep | -
 
 > [!NOTE] 
 > The DDMin variant used here (standalone and as the base for TTMin and PmaDD) is a recent iteration not yet attached to published literature. TTMin is an original contribution by researchers associated with this project.
