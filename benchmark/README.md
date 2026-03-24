@@ -15,8 +15,8 @@ Discovers all `ticket-*` cases under `predicates/xml/`, runs every algorithm × 
 Seed inputs (`input.pick/1.xml` … `5.xml`) are already checked in. Regenerate them when predicate inputs change:
 
 ```bash
-make -C predicates/xml           # build all missing variants
 make -C predicates/xml clean     # remove all input.pick/ dirs
+make -C predicates/xml           # build all missing variants
 ```
 
 ## FFmpeg
@@ -39,5 +39,5 @@ Each run creates a directory under `benchmark/runs/` named `<label>_<DD-MM-YYYY>
 
 | File | Contents |
 |------|----------|
-| `result_xml.csv` / `result_ffmpeg.csv` | Per-task metrics |
+| `result.csv` | Per-task metrics |
 | `logs/<n>_<predicate>_<algo>.log` | Full minimization trace |
