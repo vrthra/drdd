@@ -11,7 +11,8 @@ T = TypeVar("T")
 def _confidence(mono:int) -> float:
 	"""Compute the PMA confidence function."""
 
-	return 1 / (1 + exp(-mono))
+	# clamp exponent to prevent overflow
+	return 1 / (1 + exp(-max(-709, min(709, mono))))
 
 
 def _bits(pairs:list[tuple[int, T]]) -> int:
