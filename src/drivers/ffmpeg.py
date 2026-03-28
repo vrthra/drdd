@@ -48,8 +48,10 @@ class FFmpegOracle(Oracle[int]):
 			
 			"-nostdin", 
 			"-y",
-			"-i",              str(self._tmp_path),
-			"-filter_complex", self._filter_expr,
+			"-i",                      str(self._tmp_path),
+			"-threads",                "1", 
+			"-filter_complex_threads", "1",
+			"-filter_complex",         self._filter_expr,
 			
 			str(self._out_path),
 
