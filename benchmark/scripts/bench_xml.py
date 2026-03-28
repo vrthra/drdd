@@ -10,7 +10,7 @@ from drivers.xml   import xml_minimizer
 
 
 PROGRAM_DIR = Path(__file__).resolve().parent
-VARIANTS    = (1, 2, 3, 4, 5)
+VARIANTS    = (1, 2, 3)
 
 
 def main():
