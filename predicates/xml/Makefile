@@ -3,7 +3,7 @@ SCRIPTS    := $(REPO_ROOT)/scripts
 PYTHONPATH := $(REPO_ROOT)/src
 
 CASES    := $(wildcard ticket-*)
-VARIANTS := 1 2 3 4 5
+VARIANTS := 1 2 3
 
 ALL := $(foreach c,$(CASES),$(foreach v,$(VARIANTS),$(c)/input.pick/$(v).xml))
 
@@ -15,7 +15,7 @@ define PICK_RULE
 $(1)/input.pick/$(2).xml:
 	mkdir -p $(1)/input.pick
 	PYTHONPATH=$(PYTHONPATH) $(SCRIPTS)/cherrypick_xml \
-		--min-kb 0 --max-kb $(2) \
+		--min-kb 0 --max-kb $(shell echo $$(( $(2) * 2 ))) \
 		$(1)/ \
 		--output "input.pick/$(2).xml" \
 		--verbose
