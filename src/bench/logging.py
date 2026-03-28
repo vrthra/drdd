@@ -12,6 +12,8 @@ from utils.fmt       import fmt_bytes, fmt_time, progress_bar, terminal_width, l
 _SIZE_W  = 9
 _CALLS_W = 6
 
+_LINE_W  = _SIZE_W + _CALLS_W + 18
+
 
 class HarnessLog(Log):
 	"""Live terminal logger for a single benchmark task."""
@@ -33,7 +35,9 @@ class HarnessLog(Log):
 		self._t0            = time.perf_counter()
 		self._ts_start      = datetime.now().strftime("%H:%M:%S")
 
-		self._line(f"{size_str}  starting...", "00:00")
+		placeholder = f"{size_str}  starting..."
+
+		self._line(f"{placeholder:<{_LINE_W}}", "00:00")
 
 
 	def _line(self, content:str, ts:str, commit:bool=False) -> None:
@@ -77,7 +81,7 @@ class HarnessLog(Log):
 			self._line(f"{fmt_bytes(length):…>{_SIZE_W}}   {reduction:5.1f}%   {str(calls):…>{_CALLS_W}} calls", ts, commit=True)
 
 		# error row
-		elif row.get("error"): self._line(labelled_rule(_SIZE_W + _CALLS_W + 18, "FAILED"), ts, commit=True)
+		elif row.get("error"): self._line(labelled_rule(_LINE_W, "FAILED"), ts, commit=True)
 
 		# undetermined result
 		else: self._line("-  (no result)", ts, commit=True)
