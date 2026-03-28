@@ -90,7 +90,7 @@ def cherry_pick(
 	rng  = random.Random(seed)
 	size = len(_serialize(root))
 
-	if verbose: print(f"Start: {fmt_bytes(size)} | Target: [{fmt_bytes(min_bytes)}, {fmt_bytes(max_bytes)}]")
+	if verbose: print(f"Start: {fmt_bytes(size)} | Target: [{fmt_bytes(min_bytes)}, {fmt_bytes(max_bytes)}]\n")
 
 	if not oracle(list(_serialize(root))):
 		raise ValueError("Initial input does not satisfy oracle")
@@ -152,11 +152,11 @@ def cherry_pick(
 		if verbose: print(f"  #{attempt:>6}  {fmt_bytes(size):>10}  (- {fmt_bytes(prev_size - size)})")
 
 		if min_bytes <= size <= max_bytes:
-			if verbose: print("Reached target bounds.")
+			if verbose: print("\nReached target bounds.")
 			break
 
 	else:
-		if verbose: print("Max attempts reached.")
+		if verbose: print("\nMax attempts reached.")
 
 	return _serialize(root)
 
@@ -261,7 +261,7 @@ def main():
 		if args.verbose:
 			summary = (
 
-				f"\n\n - Output : {fmt_bytes(len(result))}"
+				f"\n - Output : {fmt_bytes(len(result))}"
 				f"\n - Oracle : {oracle.calls} invocations"
 				f"\n - Wrote  : {out_path}"
 
