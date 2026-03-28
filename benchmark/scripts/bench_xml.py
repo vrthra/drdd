@@ -59,9 +59,8 @@ def main():
 
 			),
 			input_path = case_dir / "input.pick" / f"{v}.xml",
-			predicate  = case_dir.name,
 			algorithm  = algorithm,
-			label      = f"{case_dir.name}/{v}",
+			label      = f"{case_dir.name}-{v}",
 
 		)
 

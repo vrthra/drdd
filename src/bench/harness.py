@@ -18,7 +18,6 @@ from utils.fmt       import fmt_bytes
 class BenchTask:
 	fn        :Callable[..., dict]
 	input_path:Path
-	predicate :str
 	algorithm :str
 	label     :str
 
@@ -60,7 +59,7 @@ def _run_one(task:BenchTask, log:HarnessLog) -> dict:
 		
 		"ts_start"          : ts_start.isoformat(),
 		"ts_end"            : ts_end.isoformat(),
-		"predicate"         : task.predicate,
+		"predicate"         : task.label,
 		"input_bytes"       : _file_size_bytes(task.input_path),
 		"input_sha256"      : _sha256_hex(task.input_path),
 		"algorithm"         : task.algorithm,
@@ -128,12 +127,12 @@ def run_all(tasks:list[BenchTask], run_dir:Path) -> None:
 			counter_str = f"{i + 1:>{len(str(n_tasks))}}/{n_tasks}"
 			size_str    = fmt_bytes(input_bytes)
 
-			log_path = log_dir / f"{i:04d}_{task.predicate}_{task.algorithm}.log"
+			log_path = log_dir / f"{i:04d}_{task.label}_{task.algorithm}.log"
 
 			with log_path.open("w", encoding="utf-8", buffering=1) as lf:
 				ts_start = datetime.now(timezone.utc)
 
-				lf.write(f"predicate  : {task.predicate}\n")
+				lf.write(f"predicate  : {task.label}\n")
 				lf.write(f"algorithm  : {task.algorithm}\n")
 				lf.write(f"input_size : {fmt_bytes(input_bytes)}\n")
 				lf.write(f"started    : {ts_start.isoformat()}\n\n")

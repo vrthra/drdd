@@ -56,7 +56,6 @@ def main():
 
 			),
 			input_path = case_dir / "input",
-			predicate  = case_dir.name,
 			algorithm  = algorithm,
 			label      = case_dir.name,
 
