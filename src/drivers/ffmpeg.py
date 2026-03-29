@@ -9,8 +9,9 @@ from core.oracle     import Oracle
 from drivers.logging import MinimizerLog
 
 
-_SHM      = shm if (shm := Path("/dev/shm")).is_dir() else None
-_ASAN_ENV = { **os.environ, "ASAN_OPTIONS": "halt_on_error=1" }
+_SHM       = shm if (shm := Path("/dev/shm")).is_dir() else None
+_ASAN_ENV  = { **os.environ, "ASAN_OPTIONS": "halt_on_error=1" }
+_BINARY_P0 = 0.01
 
 
 class FFmpegOracle(Oracle[int]):
@@ -111,11 +112,18 @@ def ffmpeg_minimizer(
 
 	if log: log.bind(len(original), oracle)
 
+	# initialize probabilistic models
+	kwargs = {"p_0": _BINARY_P0} if algorithm in ("cdd", "probdd") else {}
+
 	with oracle:
 		minimized = minimize(
+		
 			target = original,
 			oracle = oracle,
 			log    = log,
+		
+			**kwargs,
+		
 		)
 
 	if output_path: output_path.write_bytes(bytes(minimized))

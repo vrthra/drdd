@@ -12,7 +12,8 @@ from drivers.basex   import BaseXSession, BaseXServerPair, BaseXError
 from drivers.logging import MinimizerLog
 
 
-_ID_RE = re.compile(r'id="([^"]*)"')
+_ID_RE  = re.compile(r'id="([^"]*)"')
+_XML_P0 = 0.25
 
 
 def _extract_ids(text:str) -> list[str]:
@@ -130,18 +131,26 @@ def xml_minimizer(
 	minimize = getattr(import_module(f"algos.{algorithm}"), "minimize")
 
 	oracle = BaseXOracle(
+		
 		query_text = query_path.read_text(),
 		good_jar   = good_jar,
 		bad_jar    = bad_jar,
+	
 	)
 
 	if log: log.bind(len(original), oracle)
 
+	# initialize probabilistic models
+	kwargs = {"p_0": _XML_P0} if algorithm in ("cdd", "probdd") else {}
+
 	with oracle:
 		minimized = minimize(
+			
 			target = original,
 			oracle = oracle,
 			log    = log,
+			
+			**kwargs,
 		)
 
 	if output_path: output_path.write_bytes(bytes(minimized))
