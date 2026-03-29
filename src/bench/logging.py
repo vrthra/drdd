@@ -11,7 +11,6 @@ from utils.fmt       import fmt_bytes, fmt_time, progress_bar, terminal_width, l
 
 _SIZE_W  = 9
 _CALLS_W = 6
-
 _LINE_W  = _SIZE_W + _CALLS_W + 18
 
 
