@@ -26,27 +26,19 @@ def _bits(pairs:list[tuple[int, T]]) -> int:
 	return b
 
 
-def _skip_enabled(
-	candidate:int,
-	history  :list[tuple[int, bool]]) -> bool:
-
+def _check_dominated(candidate:int, history:list[int]) -> bool:
 	"""Check whether a candidate is eligible to be skipped under monotonicity."""
 
-	# skip if a previously executed superset was non-interesting
-	return any((not interesting) and (candidate & prior) == candidate for prior, interesting in history)
+	return any((candidate & prior) == candidate for prior in history)
 
 
-def _mono_assr(
-	candidate  :int,
-	interesting:bool,
-	history    :list[tuple[int, bool]]) -> bool | None:
+def _history_insert(candidate:int, history:list[int]) -> None:
+	"""Insert a non-interesting bitmask into the antichain history."""
 
-	"""Assess monotonicity compliance of an executed candidate."""
-
-	if not interesting: return None
-
-	# ensure candidate is not a subset of any uninteresting priors
-	return not any((not prior_interesting) and (candidate & prior) == candidate for prior, prior_interesting in history)
+	# prune entries now dominated by the new one (prior ⊆ candidate)
+	history[:] = [p for p in history if (p & candidate) != p]
+	
+	history.append(candidate)
 
 
 def _complement_sweep(
@@ -54,33 +46,42 @@ def _complement_sweep(
 	subsize:int,
 	oracle :Oracle[T],
 	M      :int,
-	history:list[tuple[int, bool]],
+	history:list[int],
 	log    :RateLog | None = None) -> tuple[list[tuple[int, T]], int]:
 
 	"""Identify benign chunks of target with PMA-guided skipping."""
 
-	reduced = []
-	tlen    = len(target)
+	reduced      = []
+	tlen         = len(target)
+	target_bits  = _bits(target)
+	removed_bits = 0
 
 	# test contiguous discrete subsets of size subsize
 	for i in range(0, tlen, subsize):
-		split     = i + subsize
-		remaining = reduced + target[split:]
-		candidate = _bits(remaining)
+		split = i + subsize
+
+		subset_bits    = _bits(target[i:split])
+		candidate_bits = target_bits & ~(subset_bits | removed_bits)
+		skip_eligible  = _check_dominated(candidate_bits, history)
 
 		# PMA-guided skip
-		if _skip_enabled(candidate, history) and _confidence(M) > random(): interesting = False
+		if skip_eligible and _confidence(M) > random(): interesting = False
 
 		else:
-			interesting = oracle([item for _, item in remaining])
-			is_mono     = _mono_assr(candidate, interesting, history)
+			interesting = oracle([delta for _, delta in reduced + target[split:]])			
+			
+			# monotonicity assessment
+			if interesting:
 
-			if   is_mono is True:  M += 1
-			elif is_mono is False: M -= 1
+				# interesting subset of non-interesting prior = violation
+				if skip_eligible: M -= 1
+				else:             M += 1
 
-			history.append((candidate, interesting))
+			# skip_eligible = false guarantees entry is not redundant
+			if not (interesting or skip_eligible): _history_insert(candidate_bits, history)
 
-		if not interesting: reduced.extend(target[i:split])
+		if interesting:	removed_bits |= subset_bits
+		else:           reduced.extend(target[i:split])
 
 		if log: log(len(reduced) + len(target[split:]), subsize, force=tlen - i <= subsize)
 
@@ -97,14 +98,13 @@ def minimize(
 	minimized = list(enumerate(target))
 	subsize   = max(1, len(target) // 2)
 
-	# treat the input as an initially executed interesting test case
-	history = [((1 << len(target)) - 1, True)]
+	history = []
 
 	M = 0
 
 	while subsize and minimized:
 		minimized, M = _complement_sweep(
-			
+
 			target  = minimized,
 			subsize = subsize,
 			oracle  = oracle,
@@ -115,4 +115,4 @@ def minimize(
 
 		subsize //= 2
 
-	return [item for _, item in minimized]
+	return [delta for _, delta in minimized]
