@@ -1,4 +1,5 @@
-from random       import shuffle
+import numpy as np
+
 from typing       import TypeVar
 from core.oracle  import Oracle
 from core.logging import RateLog
@@ -7,60 +8,47 @@ from core.logging import RateLog
 T = TypeVar("T")
 
 
-def _sort_indices(probs:list[float]) -> list[int]:
+def _sort_indices(probs:np.ndarray) -> np.ndarray:
 	"""Sort active elements by probability in ascending order."""
 
-	groups = {}
-
-	for idx, prob in enumerate(probs):
-		
-		# elements with probability 1 are no longer removable and skipped
-		if prob >= 1.0: continue
-
-		groups.setdefault(prob, []).append(idx)
-
-	order = []
-
-	# elements within a group (same probability) are shuffled
-	for _, group in sorted(groups.items()):
-		shuffle(group)
-		order.extend(group)
-
-	return order
+	active = np.where(probs < 1.0)[0]
+	
+	# shuffle entire array
+	np.random.shuffle(active)                               
+	
+	# stable sort preserves shuffled order within same-p groups
+	return active[np.argsort(probs[active], kind='stable')]
 
 
-def _compute_size(order:list[int], probs:list[float]) -> int:
-	"""Compute the number of elements to remove in the next attempt."""
+def _update_fail_probs(indices:np.ndarray, probs:np.ndarray) -> None:
+	"""Update probabilities after a failed deletion attempt."""
 
+	p_fail = float(np.prod(1.0 - probs[indices]))
+	new_p  = np.minimum(probs[indices] / (1.0 - p_fail), 1.0)
+
+	# clamp numerical noise from singleton updates to exact 1
+	new_p[new_p > 1.0 - 1e-12] = 1.0
+
+	probs[indices] = new_p
+
+
+def _select_subset(probs:np.ndarray) -> np.ndarray:
+	"""Select a subset via probabilities to test for removal."""
+
+	order     = _sort_indices(probs)
 	best_gain = -1.0
 	best_size = 0
 	p_pass    = 1.0
 
 	for size, idx in enumerate(order, start=1):
-		p_pass *= 1 - probs[idx]
+		p_pass *= 1.0 - probs[idx]
 		gain    = size * p_pass
 
 		# keep extending until expected gain starts decreasing
 		if gain >= best_gain: best_gain, best_size = gain, size
-		
-		else: break
+		else:                 break
 
-	return best_size
-
-
-def _update_fail_probs(indices:list[int], probs:list[float]) -> None:
-	"""Update probabilities after a failed deletion attempt."""
-
-	p_fail = 1.0
-
-	for idx in indices:
-		p_fail *= 1 - probs[idx]
-
-	for idx in indices:
-		probs[idx] = min(probs[idx] / (1 - p_fail), 1.0)
-
-		# clamp numerical noise from singleton updates to exact 1
-		if probs[idx] > 1 - 1e-12: probs[idx] = 1.0
+	return order[:best_size]
 
 
 def minimize(
@@ -72,27 +60,25 @@ def minimize(
 	"""Probabilistic Delta-Debugging algorithm over an ordered sequence."""
 
 	minimized = list(target)
-	probs     = [p_0] * len(minimized)
+	probs     = np.full(len(minimized), p_0, dtype=np.float64)
 
 	while True:
-		order = _sort_indices(probs)
+		subset = _select_subset(probs)
 
 		# terminate when every remaining element has probability 1
-		if not minimized or not order: break
+		if not minimized or len(subset) == 0: break
 
-		subsize   = _compute_size(order, probs)
-		subset    = order[:subsize]
-		marked    = set(subset)
+		marked    = set(subset.tolist())
 		candidate = [item for i, item in enumerate(minimized) if i not in marked]
 
 		# remove the attempted subset if it is removable
 		if oracle(candidate):
 			minimized = candidate
-			probs     = [prob for i, prob in enumerate(probs) if i not in marked]
+			probs     = np.delete(probs, subset)
 
 		# otherwise update probabilities of the attempted subset
 		else: _update_fail_probs(subset, probs)
 
-		if log: log(len(minimized), subsize)
+		if log: log(len(minimized), len(subset))
 
 	return minimized
