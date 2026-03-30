@@ -111,6 +111,7 @@ def minimize(
 			M       = M,
 			history = history,
 			log     = log
+		
 		)
 
 		subsize //= 2
