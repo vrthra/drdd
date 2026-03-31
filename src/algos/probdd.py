@@ -45,7 +45,7 @@ def _select_subset(probs:np.ndarray) -> np.ndarray:
 		gain    = size * p_pass
 
 		# keep extending until expected gain starts decreasing
-		if gain >= best_gain: best_gain, best_size = gain, size
+		if gain > best_gain: best_gain, best_size = gain, size
 		else:                 break
 
 	return order[:best_size]
