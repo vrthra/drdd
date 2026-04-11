@@ -35,14 +35,13 @@ def _complement_sweep(
 	reduced = []
 	tlen    = len(target)
 
-	# test contiguous discrete subsets of size subsize
 	for i in range(0, tlen, subsize):
-		split = i + subsize
+		split      = i + subsize
+		complement = reduced + target[split:]
 
-		# keep chunks whose removal would lose interesting-ness
-		if not oracle(reduced + target[split:]): reduced.extend(target[i:split])
-
-		if log: log(len(reduced) + len(target[split:]), subsize, force=tlen - i <= subsize)
+		if log: log(len(complement), subsize, force=tlen - i <= subsize)
+		
+		if not oracle(complement): reduced.extend(target[i:split])
 
 	return reduced
 

@@ -1,1 +1,1 @@
-ALGORITHMS = ("cdd", "ddmin", "pmadd", "probdd", "ttmin")
+ALGORITHMS = ("ddmin", "ddprime", "probdd", "cdd", "pmadd")

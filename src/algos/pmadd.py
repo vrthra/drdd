@@ -43,11 +43,11 @@ def _history_insert(candidate:int, history:list[int]) -> None:
 
 def _complement_sweep(
 	target :list[tuple[int, T]],
-	subsize:int,
-	oracle :Oracle[T],
+	granularity:int,
 	M      :int,
 	history:list[int],
-	log    :RateLog | None = None) -> tuple[list[tuple[int, T]], int]:
+	oracle :Oracle[T],
+	log    :RateLog | None = None) -> tuple[list[tuple[int, T]], int, int]:
 
 	"""Identify benign chunks of target with PMA-guided skipping."""
 
@@ -57,8 +57,11 @@ def _complement_sweep(
 	removed_bits = 0
 
 	# test contiguous discrete subsets of size subsize
-	for i in range(0, tlen, subsize):
-		split = i + subsize
+	for i in range(0, tlen, granularity):
+		split      = i + granularity
+		complement = reduced + target[split:]
+
+		if log: log(len(complement), granularity, force=tlen - i <= granularity)
 
 		subset_bits    = _bits(target[i:split])
 		candidate_bits = target_bits & ~(subset_bits | removed_bits)
@@ -68,7 +71,7 @@ def _complement_sweep(
 		if skip_eligible and _confidence(M) > random(): interesting = False
 
 		else:
-			interesting = oracle([delta for _, delta in reduced + target[split:]])			
+			interesting = oracle([delta for _, delta in complement])			
 			
 			# monotonicity assessment
 			if interesting:
@@ -80,12 +83,20 @@ def _complement_sweep(
 			# skip_eligible = false guarantees entry is not redundant
 			if not (interesting or skip_eligible): _history_insert(candidate_bits, history)
 
-		if interesting:	removed_bits |= subset_bits
-		else:           reduced.extend(target[i:split])
+		if interesting:	return _complement_sweep(
 
-		if log: log(len(reduced) + len(target[split:]), subsize, force=tlen - i <= subsize)
+			target      = complement,
+			granularity = max(granularity - 1, 2),
+			M           = M,
+			history     = history,
+			oracle      = oracle,
+			log         = log
+		
+		)
+		
+		reduced.extend(target[i:split])
 
-	return reduced, M
+	return reduced, granularity, M
 
 
 def minimize(
@@ -95,25 +106,27 @@ def minimize(
 
 	"""PMA-enhanced Delta-Debugging algorithm over an ordered sequence."""
 
-	minimized = list(enumerate(target))
-	subsize   = max(1, len(target) // 2)
+	minimized   = list(enumerate(target))
+	granularity = 2
 
 	history = []
 
 	M = 0
 
-	while subsize and minimized:
-		minimized, M = _complement_sweep(
+	while True:
+		minimized, granularity, M = _complement_sweep(
 
-			target  = minimized,
-			subsize = subsize,
-			oracle  = oracle,
-			M       = M,
-			history = history,
-			log     = log
+			target      = minimized,
+			granularity = granularity,
+			M           = M,
+			history     = history,
+			oracle      = oracle,
+			log         = log
 		
 		)
 
-		subsize //= 2
+		if granularity == len(minimized): break
+
+		granularity = min(granularity * 2, len(minimized))
 
 	return [delta for _, delta in minimized]

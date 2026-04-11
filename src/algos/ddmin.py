@@ -7,26 +7,32 @@ T = TypeVar("T")
 
 
 def _complement_sweep(
-	target :list[T],
-	subsize:int,
-	oracle :Oracle[T],
-	log    :RateLog | None = None) -> list[T]:
+	target     :list[T],
+	granularity:int,
+	oracle     :Oracle[T],
+	log        :RateLog | None = None) -> tuple[int, list[T]]:
 
 	"""Identify benign chunks of target with variable granularity."""
 
+	# range error guard
+	if len(target) < 2: return granularity, target
+
 	reduced = []
 	tlen    = len(target)
+	subsize = tlen // granularity
 
-	# test contiguous discrete subsets of size subsize
 	for i in range(0, tlen, subsize):
-		split = i + subsize
+		split      = i + subsize
+		complement = reduced + target[split:]
 
-		# keep chunks whose removal would lose interesting-ness
-		if not oracle(reduced + target[split:]): reduced.extend(target[i:split])
-		
-		if log: log(len(reduced) + len(target[split:]), subsize, force=tlen - i <= subsize)
+		if log: log(len(complement), subsize, force=tlen - i <= subsize)
 
-	return reduced
+		# causal restart
+		if oracle(complement): return _complement_sweep(complement, max(granularity - 1, 2), oracle, log)
+			
+		reduced.extend(target[i:split])
+
+	return granularity, reduced
 
 
 def minimize(
@@ -34,14 +40,16 @@ def minimize(
 	oracle:Oracle[T],
 	log   :RateLog | None = None) -> list[T]:
 
-	"""Delta-Debugging with halving complement sweep over an ordered sequence."""
+	"""Classical Delta-Debugging as presented in the DebuggingBook."""
 
-	minimized = list(target)
-	subsize   = max(1, len(target) // 2)
+	minimized   = list(target)
+	granularity = 2
 
-	while subsize and minimized:
-		minimized = _complement_sweep(minimized, subsize, oracle, log)
+	while True:
+		granularity, minimized = _complement_sweep(minimized, granularity, oracle, log)
 		
-		subsize //= 2
+		if granularity == len(minimized): break
+
+		granularity = min(granularity * 2, len(minimized))
 
 	return minimized
