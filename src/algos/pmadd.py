@@ -51,52 +51,56 @@ def _complement_sweep(
 
 	"""Identify benign chunks of target with PMA-guided skipping."""
 
-	reduced      = []
-	tlen         = len(target)
-	target_bits  = _bits(target)
-	removed_bits = 0
+	# range error guard
+	while len(target) >= 2:
+		
+		reduced      = []
+		tlen         = len(target)
+		subsize      = tlen // granularity
+		target_bits  = _bits(target)
+		removed_bits = 0
+		restart      = False
 
-	# test contiguous discrete subsets of size subsize
-	for i in range(0, tlen, granularity):
-		split      = i + granularity
-		complement = reduced + target[split:]
+		# test contiguous discrete subsets of size subsize
+		for i in range(0, tlen, subsize):
+			split      = i + subsize
+			complement = reduced + target[split:]
 
-		if log: log(len(complement), granularity, force=tlen - i <= granularity)
+			if log: log(len(complement), subsize, force=tlen - i <= subsize)
 
-		subset_bits    = _bits(target[i:split])
-		candidate_bits = target_bits & ~(subset_bits | removed_bits)
-		skip_eligible  = _check_dominated(candidate_bits, history)
+			subset_bits    = _bits(target[i:split])
+			candidate_bits = target_bits & ~(subset_bits | removed_bits)
+			skip_eligible  = _check_dominated(candidate_bits, history)
 
-		# PMA-guided skip
-		if skip_eligible and _confidence(M) > random(): interesting = False
+			# PMA-guided skip
+			if skip_eligible and _confidence(M) > random(): interesting = False
 
-		else:
-			interesting = oracle([delta for _, delta in complement])			
-			
-			# monotonicity assessment
+			else:
+				interesting = oracle([delta for _, delta in complement])			
+				
+				# monotonicity assessment
+				if interesting:
+
+					# interesting subset of non-interesting prior = violation
+					if skip_eligible: M -= 1
+					else:             M += 1
+
+				# skip_eligible = false guarantees entry is not redundant
+				if not (interesting or skip_eligible): _history_insert(candidate_bits, history)
+
 			if interesting:
+				target      = complement
+				granularity = max(granularity - 1, 2)
+				restart     = True
 
-				# interesting subset of non-interesting prior = violation
-				if skip_eligible: M -= 1
-				else:             M += 1
+				break
+			
+			reduced.extend(target[i:split])
 
-			# skip_eligible = false guarantees entry is not redundant
-			if not (interesting or skip_eligible): _history_insert(candidate_bits, history)
+		if not restart: return reduced, granularity, M
 
-		if interesting:	return _complement_sweep(
-
-			target      = complement,
-			granularity = max(granularity - 1, 2),
-			M           = M,
-			history     = history,
-			oracle      = oracle,
-			log         = log
-		
-		)
-		
-		reduced.extend(target[i:split])
-
-	return reduced, granularity, M
+	# fall-through
+	return list(target), granularity, M
 
 
 def minimize(

@@ -10,29 +10,38 @@ def _complement_sweep(
 	target     :list[T],
 	granularity:int,
 	oracle     :Oracle[T],
-	log        :RateLog | None = None) -> tuple[int, list[T]]:
+	log        :RateLog | None = None) -> tuple[list[T], int]:
 
 	"""Identify benign chunks of target with variable granularity."""
 
 	# range error guard
-	if len(target) < 2: return granularity, target
+	while len(target) >= 2:
+		
+		reduced = []
+		tlen    = len(target)
+		subsize = tlen // granularity
+		restart = False
 
-	reduced = []
-	tlen    = len(target)
-	subsize = tlen // granularity
+		for i in range(0, tlen, subsize):
+			split      = i + subsize
+			complement = reduced + target[split:]
 
-	for i in range(0, tlen, subsize):
-		split      = i + subsize
-		complement = reduced + target[split:]
+			if log: log(len(complement), subsize, force=tlen - i <= subsize)
 
-		if log: log(len(complement), subsize, force=tlen - i <= subsize)
+			# causal restart
+			if oracle(complement): 
+				target      = complement
+				granularity = max(granularity - 1, 2)
+				restart     = True
 
-		# causal restart
-		if oracle(complement): return _complement_sweep(complement, max(granularity - 1, 2), oracle, log)
-			
-		reduced.extend(target[i:split])
+				break
+				
+			reduced.extend(target[i:split])
 
-	return granularity, reduced
+		if not restart: return reduced, granularity
+
+	# fall-through
+	return list(target), granularity
 
 
 def minimize(
@@ -46,7 +55,7 @@ def minimize(
 	granularity = 2
 
 	while True:
-		granularity, minimized = _complement_sweep(minimized, granularity, oracle, log)
+		minimized, granularity = _complement_sweep(minimized, granularity, oracle, log)
 		
 		if granularity == len(minimized): break
 
